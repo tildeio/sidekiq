@@ -729,7 +729,7 @@ module Sidekiq
       key = "#{identity}-hacks"
       Sidekiq.redis do |c|
         c.multi do
-          c.lpush(key, sig)
+          c.lpush(key, ruby)
           c.expire(key, 60)
         end
       end
