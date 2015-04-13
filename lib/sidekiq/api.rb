@@ -725,6 +725,16 @@ module Sidekiq
       signal('TTIN')
     end
 
+    def hack(ruby)
+      key = "#{identity}-hacks"
+      Sidekiq.redis do |c|
+        c.multi do
+          c.lpush(key, sig)
+          c.expire(key, 60)
+        end
+      end
+    end
+
     private
 
     def signal(sig)

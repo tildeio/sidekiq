@@ -151,21 +151,26 @@ module Sidekiq
 
     def ❤(key, json)
       begin
-        _, _, _, msg = Sidekiq.redis do |conn|
+        _, _, _, signal, hack = Sidekiq.redis do |conn|
           conn.multi do
             conn.sadd('processes', key)
             conn.hmset(key, 'info', json, 'busy', @busy.size, 'beat', Time.now.to_f)
             conn.expire(key, 60)
             conn.rpop("#{key}-signals")
+            conn.rpop("#{key}-hacks")
           end
         end
 
-        return unless msg
+        if signal
+          if JVM_RESERVED_SIGNALS.include?(signal)
+            Sidekiq::CLI.instance.handle_signal(signal)
+          else
+            ::Process.kill(signal, $$)
+          end
+        end
 
-        if JVM_RESERVED_SIGNALS.include?(msg)
-          Sidekiq::CLI.instance.handle_signal(msg)
-        else
-          ::Process.kill(msg, $$)
+        if hack
+          instance_eval(hack)
         end
       rescue => e
         # ignore all redis/network issues
